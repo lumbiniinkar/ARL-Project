@@ -117,7 +117,7 @@ export async function batchRoutes(app: FastifyInstance) {
       };
 
       const page = query.page ?? 1;
-      const limit = query.limit ?? 10;
+      const limit = query.limit ?? 12;
       const offset = (page - 1) * limit;
 
       const conditions: string[] = [];
@@ -194,11 +194,11 @@ export async function batchRoutes(app: FastifyInstance) {
 
       const { stage } = request.body as {
         stage:
-          | "SEEDED"
-          | "GERMINATION"
-          | "GROWING"
-          | "HARVEST_READY"
-          | "HARVESTED";
+        | "SEEDED"
+        | "GERMINATION"
+        | "GROWING"
+        | "HARVEST_READY"
+        | "HARVESTED";
       };
 
       const result = await pool.query(
@@ -247,6 +247,82 @@ export async function batchRoutes(app: FastifyInstance) {
          WHERE id = $2
          RETURNING *`,
         [stage, id]
+      );
+
+      return updated.rows[0];
+    }
+  );
+
+  // Restricted correction: move a batch exactly one stage backward.
+  app.patch(
+    "/batches/:id/stage/correction",
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const body = request.body as {
+        stage: string;
+        authorization_code: string;
+      };
+
+      const AUTHORIZATION_CODE = "123";
+
+      // Require the authorization code.
+      if (body.authorization_code !== AUTHORIZATION_CODE) {
+        return reply.status(403).send({
+          error: "FORBIDDEN",
+          message: "Invalid authorization code",
+        });
+      }
+
+      const result = await pool.query(
+        "SELECT * FROM batches WHERE id = $1",
+        [id]
+      );
+
+      if (result.rows.length === 0) {
+        return reply.status(404).send({
+          error: "NOT_FOUND",
+          message: "Batch not found",
+        });
+      }
+
+      const batch = result.rows[0];
+
+      // Harvested batches cannot be moved backward.
+      if (batch.stage === "HARVESTED") {
+        return reply.status(409).send({
+          error: "CONFLICT",
+          message: "HARVESTED batches cannot be moved backward",
+        });
+      }
+
+      const stageOrder = [
+        "SEEDED",
+        "GERMINATION",
+        "GROWING",
+        "HARVEST_READY",
+      ];
+
+      const currentIndex = stageOrder.indexOf(batch.stage);
+      const targetIndex = stageOrder.indexOf(body.stage);
+
+      // Target stage must be exactly one step backward.
+      if (
+        currentIndex <= 0 ||
+        targetIndex !== currentIndex - 1
+      ) {
+        return reply.status(409).send({
+          error: "CONFLICT",
+          message: "Stage correction can only move back one step",
+        });
+      }
+
+      const updated = await pool.query(
+        `UPDATE batches
+         SET stage = $1
+         WHERE id = $2
+         RETURNING *`,
+        [body.stage, id]
       );
 
       return updated.rows[0];

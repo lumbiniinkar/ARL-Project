@@ -1,6 +1,7 @@
 import { Type } from "@sinclair/typebox";
 
 // Validates the data recorded when a batch is harvested.
+// const Creates a variable that we don't reassign.
 export const HarvestSchema = Type.Object({
   harvested_on: Type.String({ minLength: 1 }),
   weight_grams: Type.Number({ exclusiveMinimum: 0 }),

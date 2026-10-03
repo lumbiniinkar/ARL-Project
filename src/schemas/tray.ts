@@ -1,7 +1,7 @@
 // This describes what a valid POST /trays request looks like.
 
 
-import { InvalidLiteralValue } from "@fastify/type-provider-typebox"
+// import { InvalidLiteralValue } from "@fastify/type-provider-typebox"
 import { Type } from "@sinclair/typebox";
 
 export const CreateTraySchema = Type.Object({

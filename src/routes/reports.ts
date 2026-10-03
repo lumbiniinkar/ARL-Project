@@ -46,7 +46,7 @@ export async function reportRoutes(app: FastifyInstance) {
 
       const values: string[] = [];
       const conditions: string[] = [
-        "b.stage = 'HARVESTED'",
+        "b.stage = 'HARVESTED'", // only harvested batches
       ];
 
       if (query.from) {
